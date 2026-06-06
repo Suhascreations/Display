@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Screen MP4 Player with Auto-Hide Mute Button</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        
+        /* ෆයිල් එක තෝරන්න කියන සම්පූර්ණ බොක්ස් එක */
+        #upload-container {
+            text-align: center;
+            color: #fff;
+            padding: 40px;
+            border: 2px dashed #555;
+            border-radius: 10px;
+            cursor: pointer;
+            background: #111;
+            transition: 0.3s;
+            width: 80%;
+            max-width: 500px;
+            z-index: 10;
+        }
+        #upload-container:hover {
+            border-color: #00bcd4;
+            background: #151515;
+        }
+        #file-input {
+            display: none;
+        }
+
+        /* වීඩියෝ එක තිරය පුරාම පෙනීමට */
+        #video-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            outline: none;
+        }
+
+        /* Timeline සහ default Buttons සම්පූර්ණයෙන්ම නැති කිරීමට */
+        video::-webkit-media-controls { display: none !important; }
+        video::-moz-media-controls { display: none !important; }
+        video::-webkit-media-controls-enclosure { display: none !important; }
+
+        /* සද්දේ කපන/දාන විශේෂ බටන් එක (Auto-Hide) */
+        #mute-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            z-index: 2147483647; /* Full screen එකේදීත් උඩින්ම පේන්න */
+            opacity: 0; /* මුලින්ම හැංගිලා තියෙන්නේ */
+            transition: opacity 0.4s ease; /* ලස්සනට මැකී යන්න */
+        }
+        /* මවුස් එක වීඩියෝ එක උඩට ගියපු ගමන් බටන් එක පේන්න ගන්නවා */
+        #video-wrapper:hover #mute-btn {
+            opacity: 1;
+        }
+        #mute-btn:hover {
+            background: #00bcd4;
+            border-color: #00bcd4;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ෆයිල් එක තෝරන කොටස -->
+    <div id="upload-container" onclick="document.getElementById('file-input').click()">
+        <h2 style="margin-bottom: 10px;">MP4 වීඩියෝවක් තෝරන්න</h2>
+        <p style="color: #aaa; margin: 0;">මෙතන ක්ලික් කර වීඩියෝ ෆයිල් එක ලබාදෙන්න</p>
+        <input type="file" id="file-input" accept="video/mp4">
+    </div>
+
+    <!-- වීඩියෝ සහ බටන් එක අඩංගු කොටස -->
+    <div id="video-wrapper">
+        <video id="video-player" autoplay playsinline></video>
+        <!-- සද්දේ පාලනය කරන බටන් එක -->
+        <button id="mute-btn">🔇 Mute</button>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const uploadContainer = document.getElementById('upload-container');
+        const videoWrapper = document.getElementById('video-wrapper');
+        const videoPlayer = document.getElementById('video-player');
+        const muteBtn = document.getElementById('mute-btn');
+        let hideTimeout;
+
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            
+            if (file) {
+                const fileURL = URL.createObjectURL(file);
+                
+                uploadContainer.style.display = 'none';
+                videoWrapper.style.display = 'block';
+                
+                videoPlayer.src = fileURL;
+                videoPlayer.play();
+
+                // Full Screen කිරීම
+                setTimeout(() => {
+                    openFullScreen(videoWrapper); // Wrapper එකම full screen කරනවා බටන් එක පෙනෙන්න
+                }, 100);
+            }
+        });
+
+        // Mute / Unmute ක්‍රියාවලිය
+        muteBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // බටන් එක ක්ලික් කරද්දී වෙනත් දේවල් නොවීමට
+            if (videoPlayer.muted) {
+                videoPlayer.muted = false;
+                muteBtn.innerHTML = "🔊 Unmute";
+            } else {
+                videoPlayer.muted = true;
+                muteBtn.innerHTML = "🔇 Mute";
+            }
+        });
+
+        // මවුස් එක හොල්ලලා නතර කළාම බටන් එක auto-hide වෙන්න (Minecraft එකේදී ලේසි වෙන්න)
+        videoWrapper.addEventListener('mousemove', function() {
+            muteBtn.style.opacity = '1';
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                muteBtn.style.opacity = '0';
+            }, 2500); // තත්පර 2.5 කින් බටන් එක ආයෙත් හැංගෙනවා මවුස් එක හැදුවේ නැත්නම්
+        });
+
+        function openFullScreen(element) {
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+        }
+
+        // වීඩියෝ එක ඉවර වුණාම රීසෙට් වීම
+        videoPlayer.addEventListener('ended', function() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+            
+            videoWrapper.style.display = 'none';
+            uploadContainer.style.display = 'block';
+            fileInput.value = ''; 
+            videoPlayer.muted = false; // ඊළඟ පාරට reset කිරීම
+            muteBtn.innerHTML = "🔇 Mute";
+        });
+    </script>
+
+</body>
+</html>
